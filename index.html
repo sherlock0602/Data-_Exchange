@@ -7,19 +7,45 @@
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: 0 auto; line-height: 1.6; }
+        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; line-height: 1.6; }
         .box { border: 1px solid #ccc; padding: 15px; margin-top: 15px; border-radius: 8px; }
         button { padding: 8px 15px; margin-right: 5px; margin-bottom: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold; }
         button:hover { background: #0056b3; }
-        .btn-gallery { background: #e83e8c; } /* 相簿按鈕顏色 */
+        .btn-gallery { background: #e83e8c; } 
         .btn-gallery:hover { background: #c23375; }
         .btn-send { background: #ff9800; display: none; width: 100%; margin-top: 10px; font-size: 16px; }
         .btn-send:hover { background: #e68a00; }
         .btn-download-all { background: #17a2b8; display: none; width: 100%; margin-bottom: 15px; }
         #qrcode { margin-top: 15px; background: white; padding: 10px; display: inline-block; border-radius: 8px; }
-        .file-item { margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px; word-break: break-all; border-left: 4px solid #28a745; }
-        img.preview { max-width: 100%; border-radius: 8px; margin-top: 10px; }
         #fileListPreview { margin-top: 10px; font-size: 14px; color: #555; max-height: 100px; overflow-y: auto; }
+        
+        /* 檔案接收區塊：改為網格(Grid)排版，並排顯示小卡片 */
+        #messages { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); 
+            gap: 10px; 
+        }
+        /* 獨立檔案卡片設計 */
+        .file-item { 
+            padding: 10px; background: #f8f9fa; border-radius: 8px; 
+            border-top: 4px solid #28a745; 
+            display: flex; flex-direction: column; align-items: center; justify-content: space-between;
+        }
+        /* 檔名過長自動截斷變 ... */
+        .file-name { 
+            font-size: 12px; width: 100%; white-space: nowrap; overflow: hidden; 
+            text-overflow: ellipsis; text-align: center; margin-bottom: 8px; font-weight: bold;
+        }
+        /* 縮圖統一尺寸並置中裁切 */
+        img.preview { 
+            width: 70px; height: 70px; object-fit: cover; border-radius: 5px; margin-bottom: 8px; 
+        }
+        .file-icon { font-size: 40px; margin-bottom: 8px; }
+        /* 縮小下載按鈕 */
+        .btn-dl-single { 
+            padding: 4px 8px; background: #28a745; color: white; text-decoration: none; 
+            border-radius: 4px; font-size: 12px; width: 100%; text-align: center; box-sizing: border-box;
+        }
     </style>
 </head>
 <body>
@@ -29,24 +55,20 @@
         <p id="status" style="font-weight: bold; color: #d9534f;">正在初始化網路連線...</p>
     </div>
 
-    <!-- QR Code 顯示區塊 -->
     <div class="box" id="hostBox" style="display: none;">
         <label>📱 <b>請用另一台裝置掃描此 QR Code 連線：</b></label>
         <div id="qrcode"></div>
     </div>
 
-    <!-- 傳輸控制區塊 -->
     <div class="box" id="transferBox" style="display: none;">
         <label>1. 選擇要傳送的檔案 (可多選)：</label><br><br>
         
-        <!-- 兩個隱藏的 input，分別處理相簿與檔案總管 -->
-        <!-- multiple 允許一次選擇多個檔案 -->
-        <!-- accept="image/*,video/*" 會強制手機優先開啟相簿 -->
-        <input type="file" id="photoInput" multiple accept="image/*,video/*" style="display: none;" onchange="updateFileList(this)">
+        <!-- 將 accept 嚴格限制為 image/* 提升喚醒原生相簿的機率 -->
+        <input type="file" id="photoInput" multiple accept="image/*" style="display: none;" onchange="updateFileList(this)">
         <input type="file" id="fileInput" multiple style="display: none;" onchange="updateFileList(this)">
 
-        <button class="btn-gallery" onclick="document.getElementById('photoInput').click()">🖼️ 從相簿選擇</button>
-        <button onclick="document.getElementById('fileInput').click()">📁 從檔案夾選擇</button>
+        <button class="btn-gallery" onclick="document.getElementById('photoInput').click()">🖼️ 從相簿選擇 (照片)</button>
+        <button onclick="document.getElementById('fileInput').click()">📁 從檔案總管選擇</button>
         
         <div id="fileListPreview"></div>
         <button id="sendBtn" class="btn-send" onclick="sendSelectedFiles()">🚀 開始傳送</button>
@@ -54,7 +76,6 @@
 
     <div class="box">
         <label>📥 接收到的檔案：</label><br><br>
-        <!-- 一鍵下載全部按鈕 -->
         <button id="downloadAllBtn" class="btn-download-all" onclick="downloadAllFiles()">📦 一鍵下載全部</button>
         <div id="messages"></div>
     </div>
@@ -62,8 +83,8 @@
     <script>
         const peer = new Peer();
         let connection = null;
-        let selectedFiles = []; // 準備發送的檔案清單
-        let receivedFilesList = []; // 已接收的檔案清單 (供一鍵下載使用)
+        let selectedFiles = []; 
+        let receivedFilesList = []; 
 
         const urlParams = new URLSearchParams(window.location.search);
         const targetPeerId = urlParams.get('peerId');
@@ -98,7 +119,6 @@
                     const blob = new Blob([data.file], { type: data.filetype });
                     const url = URL.createObjectURL(blob);
                     
-                    // 將收到的檔案加入清單
                     receivedFilesList.push({ url: url, filename: data.filename });
                     document.getElementById('downloadAllBtn').style.display = 'block';
                     
@@ -112,7 +132,6 @@
             });
         }
 
-        // 更新畫面上的已選檔案預覽
         function updateFileList(inputElement) {
             selectedFiles = Array.from(inputElement.files);
             const preview = document.getElementById('fileListPreview');
@@ -129,7 +148,6 @@
             }
         }
 
-        // 依序傳送檔案 (避免一次塞入太多導致 WebRTC 當機)
         async function sendSelectedFiles() {
             if (!connection || !connection.open) return alert('尚未建立連線！');
             if (selectedFiles.length === 0) return alert('請先選擇檔案');
@@ -141,22 +159,15 @@
                 const file = selectedFiles[i];
                 updateStatus(`傳送中... (${i + 1}/${selectedFiles.length}) : ${file.name}`, '#f0ad4e');
                 
-                // 等待 Promise 完成，確保檔案依序傳送
                 await new Promise(resolve => {
-                    connection.send({
-                        file: file,
-                        filename: file.name,
-                        filetype: file.type
-                    });
-                    // 加入 500 毫秒延遲，讓網路緩衝區有時間消化
-                    setTimeout(resolve, 500); 
+                    connection.send({ file: file, filename: file.name, filetype: file.type });
+                    setTimeout(resolve, 300); 
                 });
             }
 
             updateStatus('✅ 所有檔案已成功傳送！', '#5cb85c');
             sendBtn.disabled = false;
             
-            // 傳送完畢後清空選擇
             document.getElementById('photoInput').value = '';
             document.getElementById('fileInput').value = '';
             selectedFiles = [];
@@ -164,29 +175,27 @@
             sendBtn.style.display = 'none';
         }
 
-        // 顯示接收到的檔案
+        // 新版檔案卡片 UI 生成邏輯
         function displayReceivedFile(url, filename, filetype) {
             const msgDiv = document.getElementById('messages');
             const fileItem = document.createElement('div');
             fileItem.className = 'file-item';
 
-            const downloadBtn = `<a href="${url}" download="${filename}" style="display: inline-block; margin-top: 10px; padding: 6px 12px; background: #28a745; color: white; text-decoration: none; border-radius: 5px; font-size: 13px;">📥 單獨下載</a>`;
+            const downloadBtn = `<a href="${url}" download="${filename}" class="btn-dl-single">📥 下載</a>`;
+            const nameLabel = `<div class="file-name" title="${filename}">${filename}</div>`;
 
             if (filetype && filetype.startsWith('image/')) {
-                fileItem.innerHTML = `<strong>${filename}</strong><br><img class="preview" src="${url}"><br>${downloadBtn}`;
+                fileItem.innerHTML = `${nameLabel}<img class="preview" src="${url}">${downloadBtn}`;
             } else {
-                fileItem.innerHTML = `<strong>${filename}</strong><br>${downloadBtn}`;
+                fileItem.innerHTML = `${nameLabel}<div class="file-icon">📄</div>${downloadBtn}`;
             }
             
             msgDiv.insertBefore(fileItem, msgDiv.firstChild);
         }
 
-        // 一鍵下載全部收到的檔案
         async function downloadAllFiles() {
             if (receivedFilesList.length === 0) return;
             
-            // 由於瀏覽器安全機制，連續彈出多個下載可能會被當作廣告彈窗阻擋
-            // 因此這裡加入短暫的間隔時間依序觸發下載
             for (let i = 0; i < receivedFilesList.length; i++) {
                 const file = receivedFilesList[i];
                 const a = document.createElement('a');
@@ -199,7 +208,7 @@
                 
                 await new Promise(resolve => setTimeout(resolve, 300));
             }
-            alert('📥 已觸發全部下載！\n(如果瀏覽器提示「是否允許下載多個檔案」，請點選允許)');
+            alert('📥 已觸發全部下載！\n(視瀏覽器設定，可能需要手動允許「下載多個檔案」的權限)');
         }
 
         function updateStatus(msg, color) {
