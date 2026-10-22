@@ -11,15 +11,13 @@
         .box { border: 1px solid #ccc; padding: 15px; margin-top: 15px; border-radius: 8px; }
         button { padding: 8px 15px; margin-right: 5px; margin-bottom: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold; }
         button:hover { background: #0056b3; }
-        .btn-gallery { background: #e83e8c; } 
-        .btn-gallery:hover { background: #c23375; }
         .btn-send { background: #ff9800; display: none; width: 100%; margin-top: 10px; font-size: 16px; }
         .btn-send:hover { background: #e68a00; }
         .btn-download-all { background: #17a2b8; display: none; width: 100%; margin-bottom: 15px; }
         #qrcode { margin-top: 15px; background: white; padding: 10px; display: inline-block; border-radius: 8px; }
         #fileListPreview { margin-top: 10px; font-size: 14px; color: #555; max-height: 100px; overflow-y: auto; }
         
-        /* 檔案接收區塊：改為網格(Grid)排版，並排顯示小卡片 */
+        /* 檔案接收區塊：改為網格排版，並排顯示小卡片 */
         #messages { 
             display: grid; 
             grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); 
@@ -31,12 +29,12 @@
             border-top: 4px solid #28a745; 
             display: flex; flex-direction: column; align-items: center; justify-content: space-between;
         }
-        /* 檔名過長自動截斷變 ... */
+        /* 檔名過長自動截斷 */
         .file-name { 
             font-size: 12px; width: 100%; white-space: nowrap; overflow: hidden; 
             text-overflow: ellipsis; text-align: center; margin-bottom: 8px; font-weight: bold;
         }
-        /* 縮圖統一尺寸並置中裁切 */
+        /* 縮圖統一尺寸 */
         img.preview { 
             width: 70px; height: 70px; object-fit: cover; border-radius: 5px; margin-bottom: 8px; 
         }
@@ -63,12 +61,8 @@
     <div class="box" id="transferBox" style="display: none;">
         <label>1. 選擇要傳送的檔案 (可多選)：</label><br><br>
         
-        <!-- 將 accept 嚴格限制為 image/* 提升喚醒原生相簿的機率 -->
-        <input type="file" id="photoInput" multiple accept="image/*" style="display: none;" onchange="updateFileList(this)">
         <input type="file" id="fileInput" multiple style="display: none;" onchange="updateFileList(this)">
-
-        <button class="btn-gallery" onclick="document.getElementById('photoInput').click()">🖼️ 從相簿選擇 (照片)</button>
-        <button onclick="document.getElementById('fileInput').click()">📁 從檔案總管選擇</button>
+        <button onclick="document.getElementById('fileInput').click()">📁 選擇檔案 (照片/文件)</button>
         
         <div id="fileListPreview"></div>
         <button id="sendBtn" class="btn-send" onclick="sendSelectedFiles()">🚀 開始傳送</button>
@@ -168,14 +162,12 @@
             updateStatus('✅ 所有檔案已成功傳送！', '#5cb85c');
             sendBtn.disabled = false;
             
-            document.getElementById('photoInput').value = '';
             document.getElementById('fileInput').value = '';
             selectedFiles = [];
             document.getElementById('fileListPreview').innerHTML = '';
             sendBtn.style.display = 'none';
         }
 
-        // 新版檔案卡片 UI 生成邏輯
         function displayReceivedFile(url, filename, filetype) {
             const msgDiv = document.getElementById('messages');
             const fileItem = document.createElement('div');
