@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P 跨裝置檔案傳輸</title>
+    <!-- 引入 PeerJS (處理 WebRTC P2P 連線) 與 QRCode.js (產生 QR Code) -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; max-width: 500px; margin: 0 auto; line-height: 1.6; }
+        .box { border: 1px solid #ccc; padding: 15px; margin-top: 15px; border-radius: 8px; }
+        button { padding: 8px 15px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }
+        button:hover { background: #0056b3; }
+        #qrcode { margin-top: 15px; background: white; padding: 10px; display: inline-block; border-radius: 8px; }
+        .file-item { margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 5px; word-break: break-all; }
+        img.preview { max-width: 100%; border-radius: 8px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h2>即時檔案傳輸通道</h2>
+    
+    <div class="box">
+        <p id="status" style="font-weight: bold; color: #d9534f;">正在初始化網路連線...</p>
+    </div>
+
+    <!-- 電腦端顯示區塊：產生 QR Code -->
+    <div class="box" id="hostBox" style="display: none;">
+        <label>📱 <b>請用另一台裝置掃描此 QR Code 連線：</b></label>
+        <div id="qrcode"></div>
+    </div>
+
+    <!-- 傳輸控制區塊 (連線後顯示) -->
+    <div class="box" id="transferBox" style="display: none;">
+        <label>1. 選擇要傳送的檔案：</label><br><br>
+        <input type="file" id="fileInput"><br><br>
+        <button onclick="sendFile()">傳送檔案</button>
+    </div>
+
+    <div class="box">
+        <label>📥 接收到的檔案：</label>
+        <div id="messages"></div>
+    </div>
+
+    <script>
+        // 初始化 PeerJS，連接到免費的公共信號伺服器
+        const peer = new Peer();
+        let connection = null;
+
+        // 檢查網址是否帶有目標 ID (表示這是掃描 QR Code 進來的手機)
+        const urlParams = new URLSearchParams(window.location.search);
+        const targetPeerId = urlParams.get('peerId');
+
+        peer.on('open', (id) => {
+            if (targetPeerId) {
+                // 【客戶端邏輯】如果是手機掃描網址進來，主動向電腦發起連線
+                document.getElementById('status').innerText = '正在連接至目標裝置...';
+                document.getElementById('status').style.color = '#f0ad4e';
+                connection = peer.connect(targetPeerId);
+                setupConnection(connection);
+            } else {
+                // 【主機端邏輯】如果是電腦直接打開網頁，產生包含自己 ID 的專屬網址並轉成 QR Code
+                document.getElementById('status').innerText = '等待掃描連線中...';
+                document.getElementById('status').style.color = '#0275d8';
+                document.getElementById('hostBox').style.display = 'block';
+                
+                // 組合專屬連線網址
+                const connectUrl = window.location.href.split('?')[0] + '?peerId=' + id;
+                
+                // 產生 QR Code
+                new QRCode(document.getElementById("qrcode"), {
+                    text: connectUrl,
+                    width: 200,
+                    height: 200
+                });
+            }
+        });
+
+        // 接收來自其他裝置的連線請求
+        peer.on('connection', (conn) => {
+            connection = conn;
+            setupConnection(connection);
+            // 連線建立後，隱藏 QR Code 區塊
+            document.getElementById('hostBox').style.display = 'none';
+        });
+
+        // 處理資料通道事件
+        function setupConnection(conn) {
+            conn.on('open', () => {
+                document.getElementById('status').innerText = '✅ 連線成功！可以互相傳送檔案了。';
+                document.getElementById('status').style.color = '#5cb85c';
+                document.getElementById('transferBox').style.display = 'block';
+            });
+
+            conn.on('data', (data) => {
+                // 收到檔案資料 (PeerJS 會自動處理 ArrayBuffer)
+                if (data.file && data.filename) {
+                    const blob = new Blob([data.file], { type: data.filetype });
+                    const url = URL.createObjectURL(blob);
+                    displayReceivedFile(url, data.filename, data.filetype);
+                }
+            });
+
+            conn.on('close', () => {
+                document.getElementById('status').innerText = '❌ 連線已中斷，請重新整理網頁。';
+                document.getElementById('status').style.color = '#d9534f';
+                document.getElementById('transferBox').style.display = 'none';
+            });
+        }
+
+        // 發送檔案
+        function sendFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file) return alert('請先選擇檔案');
+            
+            if (connection && connection.open) {
+                document.getElementById('status').innerText = '檔案傳送中...';
+                
+                // 將檔案物件直接發送 (WebRTC 會自動進行二進制傳輸)
+                connection.send({
+                    file: file,
+                    filename: file.name,
+                    filetype: file.type
+                });
+                
+                setTimeout(() => {
+                    document.getElementById('status').innerText = '✅ 上一個檔案已成功發送！';
+                }, 1000);
+            } else {
+                alert('尚未建立連線！');
+            }
+        }
+
+        // 顯示接收到的檔案
+        function displayReceivedFile(url, filename, filetype) {
+            const msgDiv = document.getElementById('messages');
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+
+            if (filetype.startsWith('image/')) {
+                fileItem.innerHTML = `<strong>${filename}</strong><br><img class="preview" src="${url}">`;
+            } else {
+                fileItem.innerHTML = `<strong>${filename}</strong><br><br><a href="${url}" download="${filename}">📥 點擊下載</a>`;
+            }
+            
+            // 將最新收到的檔案插在最上面
+            msgDiv.insertBefore(fileItem, msgDiv.firstChild);
+        }
+    </script>
+</body>
+</html>
