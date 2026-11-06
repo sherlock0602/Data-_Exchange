@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🐳 P2P 檔案傳輸大師</title>
+    <title>🍃 P2P 檔案傳輸大師</title>
     <!-- 引入可愛的圓體字型 -->
     <link href="https://fonts.googleapis.com/css2?family=Varela+Round&family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
@@ -15,8 +15,17 @@
             background-color: #f0f8ff; /* 粉藍色背景 (AliceBlue) */
             color: #555;
         }
-        h2 { text-align: center; color: #5c9ce6; font-weight: 700; text-shadow: 1px 1px 2px #dbe9f4; }
+        h2 { 
+            text-align: center; color: #5c9ce6; font-weight: 700; text-shadow: 1px 1px 2px #dbe9f4; 
+            display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 25px;
+        }
         
+        /* 專屬 SVG 小豆芽圖示樣式 */
+        .svg-icon-title { 
+            width: 38px; height: 38px; 
+            filter: drop-shadow(1px 2px 3px rgba(0,0,0,0.1));
+        }
+
         .box { 
             background: white; padding: 20px; margin-top: 15px; 
             border-radius: 20px; 
@@ -68,7 +77,27 @@
     </style>
 </head>
 <body>
-    <h2>🐳 P2P 檔案傳輸大師 🌊</h2>
+
+    <!-- 隱藏的 SVG 豆芽符號定義 (完整保留泥土與原本顏色) -->
+    <svg width="0" height="0" style="position:absolute; display:none;" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <g id="icon-sprout">
+                <!-- 底部咖啡色泥土圓圈 -->
+                <ellipse cx="12" cy="20" rx="7" ry="2.5" fill="#a1887f"/>
+                <!-- 咖啡色莖部 -->
+                <path d="M12 20 Q10 13 12 8" stroke="#795548" stroke-width="2" fill="none" stroke-linecap="round"/>
+                <!-- 左葉 -->
+                <path d="M11 12 C 4 12 2 4 2 4 C 7 1 13 5 11 12 Z" fill="#81c784" stroke="#2e7d32" stroke-width="1.5" stroke-linejoin="round"/>
+                <!-- 右葉 -->
+                <path d="M12 9 C 19 9 22 2 22 2 C 17 -1 12 3 12 9 Z" fill="#aed581" stroke="#558b2f" stroke-width="1.5" stroke-linejoin="round"/>
+            </g>
+        </defs>
+    </svg>
+
+    <h2>
+        <svg class="svg-icon-title" viewBox="0 0 24 24"><use href="#icon-sprout"></use></svg>
+        P2P 檔案傳輸大師
+    </h2>
     
     <div class="box" style="text-align: center;">
         <p id="status" style="font-weight: bold; color: #5c9ce6; font-size: 18px;">正在召喚網路精靈中...</p>
