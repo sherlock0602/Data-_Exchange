@@ -3,74 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P 跨裝置檔案傳輸</title>
+    <title>🐳 P2P 檔案傳輸大師</title>
+    <!-- 引入可愛的圓體字型 -->
+    <link href="https://fonts.googleapis.com/css2?family=Varela+Round&family=Zen+Maru+Gothic:wght@400;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; line-height: 1.6; }
-        .box { border: 1px solid #ccc; padding: 15px; margin-top: 15px; border-radius: 8px; }
-        button { padding: 8px 15px; margin-right: 5px; margin-bottom: 5px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; font-weight: bold; }
-        button:hover { background: #0056b3; }
-        .btn-send { background: #ff9800; display: none; width: 100%; margin-top: 10px; font-size: 16px; }
-        .btn-send:hover { background: #e68a00; }
-        .btn-download-all { background: #17a2b8; display: none; width: 100%; margin-bottom: 15px; }
-        #qrcode { margin-top: 15px; background: white; padding: 10px; display: inline-block; border-radius: 8px; }
-        #fileListPreview { margin-top: 10px; font-size: 14px; color: #555; max-height: 100px; overflow-y: auto; }
-        
-        /* 檔案接收區塊：改為網格排版，並排顯示小卡片 */
-        #messages { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); 
-            gap: 10px; 
+        body { 
+            font-family: 'Zen Maru Gothic', 'Varela Round', sans-serif; 
+            padding: 20px; max-width: 650px; margin: 0 auto; line-height: 1.6;
+            background-color: #f0f8ff; /* 粉藍色背景 (AliceBlue) */
+            color: #555;
         }
-        /* 獨立檔案卡片設計 */
+        h2 { text-align: center; color: #5c9ce6; font-weight: 700; text-shadow: 1px 1px 2px #dbe9f4; }
+        
+        .box { 
+            background: white; padding: 20px; margin-top: 15px; 
+            border-radius: 20px; 
+            box-shadow: 0 8px 25px rgba(92, 156, 230, 0.15); 
+            border: 2px solid #dbe9f4;
+            transition: transform 0.3s ease;
+        }
+        .box:hover { transform: translateY(-2px); }
+        
+        button { 
+            padding: 10px 18px; margin-right: 5px; margin-bottom: 5px; 
+            cursor: pointer; color: white; border: none; 
+            border-radius: 25px; font-weight: bold; font-size: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        button:hover { transform: scale(1.05); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        
+        /* 粉藍風格按鈕配色 */
+        .btn-select { background: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); color: #4a6fa5;}
+        .btn-send { background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%); display: none; width: 100%; margin-top: 15px; color: #2b5c9e;}
+        .btn-download-all { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); display: none; width: 100%; margin-bottom: 15px; color: #fff;}
+        
+        #qrcode { margin-top: 15px; background: white; padding: 15px; display: inline-block; border-radius: 15px; border: 2px dashed #a1c4fd; }
+        #fileListPreview { margin-top: 10px; font-size: 14px; color: #777; max-height: 100px; overflow-y: auto; background: #fafafa; padding: 10px; border-radius: 10px; }
+        
+        /* 檔案接收區塊 */
+        #messages { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 15px; }
         .file-item { 
-            padding: 10px; background: #f8f9fa; border-radius: 8px; 
-            border-top: 4px solid #28a745; 
+            padding: 12px; background: #f7fbff; border-radius: 15px; 
+            border-top: 5px solid #a1c4fd; box-shadow: 0 4px 10px rgba(0,0,0,0.05);
             display: flex; flex-direction: column; align-items: center; justify-content: space-between;
         }
-        /* 檔名過長自動截斷 */
-        .file-name { 
-            font-size: 12px; width: 100%; white-space: nowrap; overflow: hidden; 
-            text-overflow: ellipsis; text-align: center; margin-bottom: 8px; font-weight: bold;
-        }
-        /* 縮圖統一尺寸 */
-        img.preview { 
-            width: 70px; height: 70px; object-fit: cover; border-radius: 5px; margin-bottom: 8px; 
-        }
-        .file-icon { font-size: 40px; margin-bottom: 8px; }
-        /* 縮小下載按鈕 */
+        .file-name { font-size: 12px; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; margin-bottom: 8px; font-weight: bold; color: #666;}
+        img.preview { width: 75px; height: 75px; object-fit: cover; border-radius: 10px; margin-bottom: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .file-icon { font-size: 45px; margin-bottom: 8px; }
         .btn-dl-single { 
-            padding: 4px 8px; background: #28a745; color: white; text-decoration: none; 
-            border-radius: 4px; font-size: 12px; width: 100%; text-align: center; box-sizing: border-box;
+            padding: 6px 12px; background: #89f7fe; color: #2b5c9e; text-decoration: none; 
+            border-radius: 15px; font-size: 13px; width: 100%; text-align: center; box-sizing: border-box; font-weight: bold;
         }
+        .btn-dl-single:hover { background: #66a6ff; color: white; }
+
+        /* 進度條設計 */
+        .progress-container { width: 100%; background-color: #f0f0f0; border-radius: 15px; overflow: hidden; margin-top: 10px; display: none; height: 18px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);}
+        .progress-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #89f7fe, #66a6ff); transition: width 0.1s linear; }
+        .progress-text { font-size: 13px; color: #888; text-align: center; margin-top: 5px; display: none; }
     </style>
 </head>
 <body>
-    <h2>即時檔案傳輸通道</h2>
+    <h2>🐳 P2P 檔案傳輸大師 🌊</h2>
     
-    <div class="box">
-        <p id="status" style="font-weight: bold; color: #d9534f;">正在初始化網路連線...</p>
+    <div class="box" style="text-align: center;">
+        <p id="status" style="font-weight: bold; color: #5c9ce6; font-size: 18px;">正在召喚網路精靈中...</p>
     </div>
 
-    <div class="box" id="hostBox" style="display: none;">
-        <label>📱 <b>請用另一台裝置掃描此 QR Code 連線：</b></label>
+    <div class="box" id="hostBox" style="display: none; text-align: center;">
+        <label>📱 <b>請用另一台裝置掃描 QR Code 連線：</b></label><br>
         <div id="qrcode"></div>
     </div>
 
     <div class="box" id="transferBox" style="display: none;">
-        <label>1. 選擇要傳送的檔案 (可多選)：</label><br><br>
+        <label>💧 <b>1. 選擇要傳送的檔案 (可多選，大檔案也沒問題喔！)：</b></label><br><br>
         
         <input type="file" id="fileInput" multiple style="display: none;" onchange="updateFileList(this)">
-        <button onclick="document.getElementById('fileInput').click()">📁 選擇檔案 (照片/文件)</button>
+        <button class="btn-select" onclick="document.getElementById('fileInput').click()">📁 選擇檔案</button>
         
         <div id="fileListPreview"></div>
         <button id="sendBtn" class="btn-send" onclick="sendSelectedFiles()">🚀 開始傳送</button>
+        
+        <!-- 傳送進度條 -->
+        <div id="sendProgressContainer" class="progress-container"><div id="sendProgressBar" class="progress-bar"></div></div>
+        <div id="sendProgressText" class="progress-text"></div>
     </div>
 
     <div class="box">
-        <label>📥 接收到的檔案：</label><br><br>
-        <button id="downloadAllBtn" class="btn-download-all" onclick="downloadAllFiles()">📦 一鍵下載全部</button>
+        <label>📥 <b>2. 接收到的寶物：</b></label>
+        
+        <!-- 接收進度條 -->
+        <div id="recvProgressContainer" class="progress-container"><div id="recvProgressBar" class="progress-bar"></div></div>
+        <div id="recvProgressText" class="progress-text"></div><br>
+
+        <button id="downloadAllBtn" class="btn-download-all" onclick="downloadAllFiles()">🎁 一鍵下載全部</button>
         <div id="messages"></div>
     </div>
 
@@ -79,20 +109,22 @@
         let connection = null;
         let selectedFiles = []; 
         let receivedFilesList = []; 
+        
+        const CHUNK_SIZE = 128 * 1024; 
 
         const urlParams = new URLSearchParams(window.location.search);
         const targetPeerId = urlParams.get('peerId');
 
         peer.on('open', (id) => {
             if (targetPeerId) {
-                updateStatus('正在連接至目標裝置...', '#f0ad4e');
-                connection = peer.connect(targetPeerId);
+                updateStatus('🔍 尋找目標裝置中...', '#f0ad4e');
+                connection = peer.connect(targetPeerId, { reliable: true });
                 setupConnection(connection);
             } else {
-                updateStatus('等待掃描連線中...', '#0275d8');
+                updateStatus('⏳ 等待好夥伴掃描連線中...', '#4a90e2');
                 document.getElementById('hostBox').style.display = 'block';
                 const connectUrl = window.location.href.split('?')[0] + '?peerId=' + id;
-                new QRCode(document.getElementById("qrcode"), { text: connectUrl, width: 200, height: 200 });
+                new QRCode(document.getElementById("qrcode"), { text: connectUrl, width: 180, height: 180, colorDark: "#5c9ce6", colorLight: "#ffffff" });
             }
         });
 
@@ -102,26 +134,44 @@
             document.getElementById('hostBox').style.display = 'none';
         });
 
+        let receiveBuffer = [];
+        let incomingFileInfo = null;
+        let receivedBytes = 0;
+
         function setupConnection(conn) {
             conn.on('open', () => {
-                updateStatus('✅ 連線成功！可以互相傳送檔案了。', '#5cb85c');
+                updateStatus('🎉 連線成功！可以互相丟檔案囉！', '#3b8a6a');
                 document.getElementById('transferBox').style.display = 'block';
             });
 
             conn.on('data', (data) => {
-                if (data.file && data.filename) {
-                    const blob = new Blob([data.file], { type: data.filetype });
+                if (data.type === 'header') {
+                    incomingFileInfo = data;
+                    receiveBuffer = [];
+                    receivedBytes = 0;
+                    showProgress('recv', 0, incomingFileInfo.filename + ' (接收中)');
+                } 
+                else if (data.type === 'chunk') {
+                    receiveBuffer.push(data.data);
+                    receivedBytes += data.data.byteLength;
+                    const percent = Math.floor((receivedBytes / incomingFileInfo.size) * 100);
+                    showProgress('recv', percent, `接收中: ${incomingFileInfo.filename} (${percent}%)`);
+                } 
+                else if (data.type === 'eof') {
+                    const blob = new Blob(receiveBuffer, { type: incomingFileInfo.filetype });
                     const url = URL.createObjectURL(blob);
                     
-                    receivedFilesList.push({ url: url, filename: data.filename });
+                    receivedFilesList.push({ url: url, filename: incomingFileInfo.filename });
                     document.getElementById('downloadAllBtn').style.display = 'block';
                     
-                    displayReceivedFile(url, data.filename, data.filetype);
+                    displayReceivedFile(url, incomingFileInfo.filename, incomingFileInfo.filetype);
+                    showProgress('recv', 100, '✅ 接收完成！');
+                    setTimeout(() => hideProgress('recv'), 3000);
                 }
             });
 
             conn.on('close', () => {
-                updateStatus('❌ 連線已中斷，請重新整理網頁。', '#d9534f');
+                updateStatus('❌ 哎呀，連線斷開了，請重新整理網頁。', '#d9534f');
                 document.getElementById('transferBox').style.display = 'none';
             });
         }
@@ -132,8 +182,8 @@
             const sendBtn = document.getElementById('sendBtn');
             
             if (selectedFiles.length > 0) {
-                preview.innerHTML = `已選擇 <b>${selectedFiles.length}</b> 個檔案：<br>` + 
-                                    selectedFiles.map(f => `- ${f.name}`).join('<br>');
+                preview.innerHTML = `已準備好 <b>${selectedFiles.length}</b> 個寶物：<br>` + 
+                                    selectedFiles.map(f => `✨ ${f.name} (${(f.size/1024/1024).toFixed(2)} MB)`).join('<br>');
                 sendBtn.style.display = 'block';
                 sendBtn.innerText = `🚀 傳送這 ${selectedFiles.length} 個檔案`;
             } else {
@@ -151,21 +201,50 @@
 
             for (let i = 0; i < selectedFiles.length; i++) {
                 const file = selectedFiles[i];
-                updateStatus(`傳送中... (${i + 1}/${selectedFiles.length}) : ${file.name}`, '#f0ad4e');
+                updateStatus(`🚀 正在用力傳送... (${i + 1}/${selectedFiles.length})`, '#4facfe');
                 
-                await new Promise(resolve => {
-                    connection.send({ file: file, filename: file.name, filetype: file.type });
-                    setTimeout(resolve, 300); 
-                });
+                connection.send({ type: 'header', filename: file.name, filetype: file.type, size: file.size });
+                
+                let offset = 0;
+                while (offset < file.size) {
+                    if (connection.dataChannel && connection.dataChannel.bufferedAmount > 1024 * 1024 * 2) {
+                        await new Promise(r => setTimeout(r, 50));
+                        continue;
+                    }
+                    
+                    const chunk = file.slice(offset, offset + CHUNK_SIZE);
+                    const buffer = await chunk.arrayBuffer();
+                    connection.send({ type: 'chunk', data: buffer });
+                    
+                    offset += chunk.size;
+                    
+                    const percent = Math.floor((offset / file.size) * 100);
+                    showProgress('send', percent, `傳送中: ${file.name} (${percent}%)`);
+                }
+                
+                connection.send({ type: 'eof' });
+                await new Promise(resolve => setTimeout(resolve, 500)); 
             }
 
-            updateStatus('✅ 所有檔案已成功傳送！', '#5cb85c');
+            updateStatus('🎉 所有寶物都順利送達囉！', '#3b8a6a');
             sendBtn.disabled = false;
             
             document.getElementById('fileInput').value = '';
             selectedFiles = [];
             document.getElementById('fileListPreview').innerHTML = '';
             sendBtn.style.display = 'none';
+            setTimeout(() => hideProgress('send'), 3000);
+        }
+
+        function showProgress(type, percent, text) {
+            document.getElementById(`${type}ProgressContainer`).style.display = 'block';
+            document.getElementById(`${type}ProgressText`).style.display = 'block';
+            document.getElementById(`${type}ProgressBar`).style.width = percent + '%';
+            document.getElementById(`${type}ProgressText`).innerText = text;
+        }
+        function hideProgress(type) {
+            document.getElementById(`${type}ProgressContainer`).style.display = 'none';
+            document.getElementById(`${type}ProgressText`).style.display = 'none';
         }
 
         function displayReceivedFile(url, filename, filetype) {
@@ -173,7 +252,7 @@
             const fileItem = document.createElement('div');
             fileItem.className = 'file-item';
 
-            const downloadBtn = `<a href="${url}" download="${filename}" class="btn-dl-single">📥 下載</a>`;
+            const downloadBtn = `<a href="${url}" download="${filename}" class="btn-dl-single">📥 點我收下</a>`;
             const nameLabel = `<div class="file-name" title="${filename}">${filename}</div>`;
 
             if (filetype && filetype.startsWith('image/')) {
@@ -200,7 +279,7 @@
                 
                 await new Promise(resolve => setTimeout(resolve, 300));
             }
-            alert('📥 已觸發全部下載！\n(視瀏覽器設定，可能需要手動允許「下載多個檔案」的權限)');
+            alert('🎁 寶箱已開啟！全部下載中~\n(如果沒有反應，請檢查瀏覽器上方是否有阻擋「下載多個檔案」的權限喔)');
         }
 
         function updateStatus(msg, color) {
